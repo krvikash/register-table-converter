@@ -66,14 +66,14 @@ mvn clean compile assembly:single
 
 Using file:
 ```
-java -cp register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/file/
+java -cp lib/register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/file/
 ```
 
 Using directory:
 
 This approach will use files recursively.
 ```
-java -cp register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/directory/
+java -cp lib/register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/directory/
 ```
 
 If there is any match then in the same location as of source file there will be a new file created with `_register_table` suffix
