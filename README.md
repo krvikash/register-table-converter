@@ -1,5 +1,5 @@
 ## Overview
-This project aims to convert following type statement with `register_table` statement
+This project aims to convert following type `CREATE TABLE` statement to `register_table` statement.
 ```sql
 CREATE TABLE <catalog>.<schema_name>.<table_name> (<column_defintion>) WITH (Location = '<table_location>')
 ```
@@ -23,7 +23,7 @@ to
 CALL test_delta.system.register_table(schema_name => 'test', table_name => 'my_table', table_location => 'abfss://starburstdata@container.dfs.core.windows.net/test/my_table')
 ```
 
-Other format of `CREATE TABLE` statement will not be converted.
+Other format of `CREATE TABLE` statement will not be converted. Those statements will be skipped.
 
 There should not be any other property than `property`
 
@@ -49,17 +49,32 @@ WITH (
 ) COMMENT 'This is not convertible';
 ```
 
+## How to build
+
+Use maven to build the project
+
+Build and compile
+```
+mvn clean install
+```
+Build jar with dependencies. This will generate `register-table-converter-1.0-jar-with-dependencies` jar in `target` directory.
+```
+mvn clean compile assembly:single
+```
+
 ## Usage
 
-Using file
+Using file:
 ```
-java -cp register-table-converter-1.0-jar-with-dependencies.jar /path/to/file/
+java -cp register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/file/
 ```
 
-Using directory
+Using directory:
+
+This approach will use files recursively.
 ```
-java -cp register-table-converter-1.0-jar-with-dependencies.jar /path/to/directory/
+java -cp register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/directory/
 ```
 
 If there is any match then in the same location as of source file there will be a new file created with `_register_table` suffix
-which will contain the `register_table` statement instead `create table` statement.
+which will contain the `register_table` statement instead of `create table` statement.
