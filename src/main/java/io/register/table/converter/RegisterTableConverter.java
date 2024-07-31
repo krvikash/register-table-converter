@@ -1,86 +1,95 @@
 package io.register.table.converter;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.trino.cli.lexer.StatementSplitter;
+import io.trino.sql.parser.SqlParser;
+import io.trino.sql.tree.CreateTable;
+import io.trino.sql.tree.Property;
+import io.trino.sql.tree.Statement;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static org.apache.logging.log4j.Level.INFO;
-import static org.apache.logging.log4j.Level.WARN;
+import java.util.List;
 
 public class RegisterTableConverter
 {
-    private static final Logger LOGGER = LogManager.getLogger(RegisterTableConverter.class);
     // To match with relax CREATE TABLE <catalog>.<schema_name>.<table_name> (<column_definition>) WITH (... Location = '<table_location>' ...) ....
     private final static String CRATE_TABLE_WITH_LOCATION_RELAX = "CREATE\\s+TABLE\\s+(\\w+)\\.(\\w+)\\.(\\w+)\\s*\\(\\s*[^)]*\\s*\\)\\s*WITH\\s*\\([^)]*location\\s*=\\s*'([^']+)'([^)]+)\\)";
     // To match with strict CREATE TABLE <catalog>.<schema_name>.<table_name> (<column_defintion>) WITH (Location = '<table_location>')
     private final static String CRATE_TABLE_WITH_LOCATION_STRICT = "CREATE\\s+TABLE\\s+(\\w+)\\.(\\w+)\\.(\\w+)\\s*\\(\\s*[^)]*\\s*\\)\\s*WITH\\s*\\(\\s*LOCATION\\s*=\\s*'([^']+)'\\s*\\)(?:\\s*;)?\\s*\n";
 
-    public Map<String, String> convert(String filePath)
+    public String convert(String filePath)
     {
+        if (!Files.exists(Path.of(filePath))) {
+            throw new RuntimeException("%s does not exist".formatted(filePath));
+        }
+        System.out.println("----------- Started Converting %s -----------".formatted(filePath));
         String fileContent = readFile(filePath);
         String newFileContent = fileContent;
-        Pattern pattern = Pattern.compile(CRATE_TABLE_WITH_LOCATION_STRICT, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-        Matcher matcher = pattern.matcher(fileContent);
 
-        Map<String, String> createTableWithLocationToRegisterTableMap = new HashMap<>();
-        int totalMatchCount = 0;
+        StatementSplitter statementSplitter = new StatementSplitter(fileContent);
+        List<StatementSplitter.Statement> statementList = statementSplitter.getCompleteStatements();
+        boolean atLeastOneConversion = false;
 
-        // Loop through all matches found
-        while (matcher.find()) {
-            String createTableStatement = matcher.group(0).trim();
-            String registerTableStatement = createRegisterTableStatement(matcher);
-            registerTableStatement = createTableStatement.endsWith(";") ? registerTableStatement + ";" : registerTableStatement;
-
-            newFileContent = newFileContent.replace(createTableStatement, registerTableStatement);
-            createTableWithLocationToRegisterTableMap.put(createTableStatement, registerTableStatement);
-            totalMatchCount++;
+        for (StatementSplitter.Statement statement : statementList) {
+            SqlParser sqlParser = new SqlParser();
+            String sqlQuery = statement.statement();
+            Statement sqlStatement = sqlParser.createStatement(statement.statement());
+            if (sqlStatement instanceof CreateTable createTableStatement) {
+                boolean validForConversion = false;
+                List<String> nameParts = createTableStatement.getName().getParts();
+                // Only when table name is full qualified
+                if (nameParts.size() == 3) {
+                    String catalog =nameParts.get(0);
+                    String schemaName =nameParts.get(1);
+                    String tableName =nameParts.get(2);
+                    List<Property> properties = createTableStatement.getProperties();
+                    // Only when there is only table location and no comment
+                    if (properties.size() == 1 && createTableStatement.getComment().isEmpty()) {
+                        Property property = properties.getLast();
+                        String propertyName = property.getName().getValue();
+                        String propertyValue = property.getNonDefaultValue().toString();
+                        if (propertyName.equalsIgnoreCase("Location")) {
+                            validForConversion = true;
+                            atLeastOneConversion = true;
+                            String tableLocation = propertyValue;
+                            if (propertyValue.startsWith("'")) {
+                                tableLocation = tableLocation.substring(1);
+                            }
+                            if (propertyValue.endsWith("'")) {
+                                tableLocation = tableLocation.substring(0, tableLocation.length() - 1);
+                            }
+                            String registerTableStatement = createRegisterTableStatement(catalog, schemaName, tableName, tableLocation);
+                            // This will replace the sql comment as well if there are any in the source file
+                            newFileContent = newFileContent.replace(sqlQuery, registerTableStatement);
+                        }
+                    }
+                }
+                if (!validForConversion) {
+                    System.out.println();
+                    System.out.println("WARNING: \"\n%s\n\"\ncould not be converted to register_table statement. Please check %s".formatted(sqlQuery, filePath));
+                    System.out.println();
+                }
+            }
         }
 
-        if (totalMatchCount > 0) {
-            writeFile(newFileContent, filePath);
+        if (atLeastOneConversion) {
+            return writeFile(newFileContent, filePath);
         }
-
-        int relaxCreateTableMatchCount = relaxCreateTableMatch(fileContent);
-        if (relaxCreateTableMatchCount > totalMatchCount) {
-            LOGGER.log(WARN, "%s extra CREATE TABLE ... WITH ... LOCATION ... statement(s) found which are not replaced with register_table. Please check %s".formatted(relaxCreateTableMatchCount- totalMatchCount, filePath));
-        }
-        return createTableWithLocationToRegisterTableMap;
+        System.out.println("----------- Completed Converting %s -----------".formatted(filePath));
+        System.out.println();
+        return filePath;
     }
 
-    private String createRegisterTableStatement(Matcher matcher)
+    private String createRegisterTableStatement(String catalog, String schemaName, String tableName, String tableLocation)
     {
-        String catalog = matcher.group(1);
-        String schemaName = matcher.group(2);
-        String tableName = matcher.group(3);
-        String tableLocation = matcher.group(4);
-
         return "CALL %s.system.register_table(schema_name => '%s', table_name => '%s', table_location => '%s')"
                 .formatted(catalog, schemaName, tableName, tableLocation);
     }
 
-    private static int relaxCreateTableMatch(String fileContent)
-    {
-        Pattern pattern = Pattern.compile(CRATE_TABLE_WITH_LOCATION_RELAX, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-        Matcher matcher = pattern.matcher(fileContent);
-        int totalMatchCount = 0;
-
-        // Loop through all matches found
-        while (matcher.find()) {
-            totalMatchCount++;
-        }
-        return totalMatchCount;
-    }
-
-    private String readFile(String filePath)
+    public static String readFile(String filePath)
     {
         try {
             return Files.readString(Path.of(filePath));
@@ -90,12 +99,13 @@ public class RegisterTableConverter
         }
     }
 
-    private void writeFile(String replacedContent, String inputFilePath)
+    private String writeFile(String replacedContent, String inputFilePath)
     {
         String outputFilePath = inputFilePath + "_register_table";
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
             writer.write(replacedContent);
-            LOGGER.log(INFO, "Source path: %s, Replacement path: %s".formatted(inputFilePath, outputFilePath));
+            System.out.println("Source path: %s, Replacement path: %s".formatted(inputFilePath, outputFilePath));
+            return outputFilePath;
         }
         catch (IOException ex) {
             throw new RuntimeException(ex);
