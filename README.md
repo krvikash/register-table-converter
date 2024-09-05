@@ -1,5 +1,5 @@
 ## Overview
-This project aims to convert following type `CREATE TABLE` statement to `register_table` statement.
+This project aims to convert following type `CREATE TABLE ... WITH (LOCATION = '...')` statement to `register_table` statement.
 ```sql
 CREATE TABLE <catalog>.<schema_name>.<table_name> (<column_defintion>) WITH (Location = '<table_location>')
 ```
@@ -57,24 +57,26 @@ Build and compile
 ```
 mvn clean install
 ```
-Build jar with dependencies. This will generate `register-table-converter-1.0-jar-with-dependencies` jar in `target` directory.
+Package the executable jar. This will generate `register-table-converter-1.0-executable.jar` jar in `target` directory.
 ```
-mvn clean compile assembly:single
+mvn clean package
 ```
 
 ## Usage
 
 Using file:
 ```
-java -cp lib/register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/file/
+./target/register-table-converter-1.0-executable.jar --source /path/to/file
 ```
 
 Using directory:
 
 This approach will use files recursively.
 ```
-java -cp lib/register-table-converter-1.0-jar-with-dependencies.jar io.register.table.converter.Convert /path/to/directory/
+./target/register-table-converter-1.0-executable.jar --source /path/to/directory
 ```
 
 If there is any match then in the same location as of source file there will be a new file created with `_register_table` suffix
 which will contain the `register_table` statement instead of `create table` statement.
+
+**PS:** If there are any sql comments before `CREATE TABLE ... WITH (LOCATION = '...')` statement present in the file those comments will be removed in the converted file.

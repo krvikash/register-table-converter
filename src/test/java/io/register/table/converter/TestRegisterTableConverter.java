@@ -5,9 +5,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.io.Resources.getResource;
+import static io.register.table.converter.RegisterTableConverter.readFile;
 
 public class TestRegisterTableConverter
 {
@@ -23,8 +23,8 @@ public class TestRegisterTableConverter
     public void testSample(String fileName)
     {
         String path = getResource(fileName).getPath();
-        Map<String, String> convertedToRegisterTable = converter.convert(path);
-        print(convertedToRegisterTable);
+        String generatedFile = converter.convert(path);
+        print(generatedFile);
     }
 
     public static List<Object> fileNameProvider()
@@ -42,22 +42,14 @@ public class TestRegisterTableConverter
                 .add("failed-2.sql")
                 .add("failed-3.sql")
                 .add("failed-4.sql")
-                .add("failed-10.sql")
+                .add("failed-5.sql")
 
                 .add("mixed-1.sql")
                 .build();
     }
 
-    private static void print(Map<String, String> convertedToRegisterTable)
+    private static void print(String generatedFile)
     {
-        for (Map.Entry<String, String>  entry : convertedToRegisterTable.entrySet()) {
-            System.out.println(entry.getKey());
-            System.out.println("--------------------------------------------------------------------------------");
-            System.out.println(entry.getValue());
-            System.out.println();
-            System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            System.out.println();
-        }
+        System.out.println(readFile(generatedFile));
     }
 }

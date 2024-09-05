@@ -4,4 +4,4 @@ CREATE TABLE test_delta.test.my_table (
 )
 WITH (
    location = 'abfss://starburstdata@container.dfs.core.windows.net/test/my_table'
-)
+);
