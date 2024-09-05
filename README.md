@@ -49,9 +49,33 @@ WITH (
 ) COMMENT 'This is not convertible';
 ```
 
+## Usage
+
+The executable jar is packaged inside `lib` directory of this project. You can use the jar directly or
+if you wish to modify the source code then you have to build (build process is mentioned below) the project
+using maven and use the executable jar which is generated inside `target` directory.
+
+Using file:
+```
+./lib/register-table-converter-1.0-executable.jar --source /path/to/file
+```
+
+Using directory:
+
+This approach will use files recursively.
+```
+./lib/register-table-converter-1.0-executable.jar --source /path/to/directory
+```
+
+If there is any match with `CREATE TABLE ... WITH (LOCATION = '...')` statement then in the same
+location as of source file there will be a new file created with `_register_table` suffix
+which will contain the `register_table` statement instead of `create table` statement.
+
+**PS:** If there are any sql comments (starting with `--`) before `CREATE TABLE ... WITH (LOCATION = '...')` statement present in the file those comments will be removed in the converted file.
+
 ## How to build
 
-Use maven to build the project
+Use maven to build the project.
 
 Build and compile
 ```
@@ -62,21 +86,7 @@ Package the executable jar. This will generate `register-table-converter-1.0-exe
 ./mvnw clean package
 ```
 
-## Usage
+## Unit test
 
-Using file:
-```
-./target/register-table-converter-1.0-executable.jar --source /path/to/file
-```
-
-Using directory:
-
-This approach will use files recursively.
-```
-./target/register-table-converter-1.0-executable.jar --source /path/to/directory
-```
-
-If there is any match then in the same location as of source file there will be a new file created with `_register_table` suffix
-which will contain the `register_table` statement instead of `create table` statement.
-
-**PS:** If there are any sql comments before `CREATE TABLE ... WITH (LOCATION = '...')` statement present in the file those comments will be removed in the converted file.
+There are some custom test resources inside `./src/test/resources` directory.
+You can use `TestRegisterTableConverter` unit test to verify your any custom tests.
