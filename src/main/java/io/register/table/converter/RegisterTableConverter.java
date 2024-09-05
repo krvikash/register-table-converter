@@ -15,11 +15,6 @@ import java.util.List;
 
 public class RegisterTableConverter
 {
-    // To match with relax CREATE TABLE <catalog>.<schema_name>.<table_name> (<column_definition>) WITH (... Location = '<table_location>' ...) ....
-    private final static String CRATE_TABLE_WITH_LOCATION_RELAX = "CREATE\\s+TABLE\\s+(\\w+)\\.(\\w+)\\.(\\w+)\\s*\\(\\s*[^)]*\\s*\\)\\s*WITH\\s*\\([^)]*location\\s*=\\s*'([^']+)'([^)]+)\\)";
-    // To match with strict CREATE TABLE <catalog>.<schema_name>.<table_name> (<column_defintion>) WITH (Location = '<table_location>')
-    private final static String CRATE_TABLE_WITH_LOCATION_STRICT = "CREATE\\s+TABLE\\s+(\\w+)\\.(\\w+)\\.(\\w+)\\s*\\(\\s*[^)]*\\s*\\)\\s*WITH\\s*\\(\\s*LOCATION\\s*=\\s*'([^']+)'\\s*\\)(?:\\s*;)?\\s*\n";
-
     public String convert(String filePath)
     {
         if (!Files.exists(Path.of(filePath))) {
