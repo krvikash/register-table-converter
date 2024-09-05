@@ -55,11 +55,11 @@ Use maven to build the project
 
 Build and compile
 ```
-mvn clean install
+./mvnw clean install
 ```
 Package the executable jar. This will generate `register-table-converter-1.0-executable.jar` jar in `target` directory.
 ```
-mvn clean package
+./mvnw clean package
 ```
 
 ## Usage
