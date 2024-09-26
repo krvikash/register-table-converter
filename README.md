@@ -25,7 +25,7 @@ CALL test_delta.system.register_table(schema_name => 'test', table_name => 'my_t
 
 Other format of `CREATE TABLE` statement will not be converted. Those statements will be skipped.
 
-There should not be any other property than `property`
+There should not be any other property than `location`
 
 ```
 CREATE TABLE test_delta.test.my_table (
